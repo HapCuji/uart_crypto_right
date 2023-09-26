@@ -23,7 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "uart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,21 +55,21 @@ DMA_HandleTypeDef hdma_usart2_tx;
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .priority = (osPriority_t) osPriorityNormal,
+  .priority = (osPriority_t) osPriorityLow1,
   .stack_size = 128 * 4
 };
 /* Definitions for rt_uart1 */
 osThreadId_t rt_uart1Handle;
 const osThreadAttr_t rt_uart1_attributes = {
   .name = "rt_uart1",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* Definitions for rt_uart2 */
 osThreadId_t rt_uart2Handle;
 const osThreadAttr_t rt_uart2_attributes = {
   .name = "rt_uart2",
-  .priority = (osPriority_t) osPriorityLow,
+  .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
 /* USER CODE BEGIN PV */
@@ -86,8 +86,8 @@ static void MX_IWDG_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM5_Init(void);
 void StartDefaultTask(void *argument);
-void StartTask02(void *argument);
-void StartTask03(void *argument);
+void encrypter_task(void *argument);
+void decrypter_task(void *argument);
 
 static void MX_NVIC_Init(void);
 /* USER CODE BEGIN PFP */
@@ -164,10 +164,10 @@ int main(void)
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
 
   /* creation of rt_uart1 */
-  rt_uart1Handle = osThreadNew(StartTask02, NULL, &rt_uart1_attributes);
+  rt_uart1Handle = osThreadNew(encrypter_task, NULL, &rt_uart1_attributes);
 
   /* creation of rt_uart2 */
-  rt_uart2Handle = osThreadNew(StartTask03, NULL, &rt_uart2_attributes);
+  rt_uart2Handle = osThreadNew(decrypter_task, NULL, &rt_uart2_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -460,7 +460,23 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+bool was_passed_time_us(uint32_t start_time_us, uint32_t must_be_passed_us){
+    uint32_t cnt_us = GET_TIME_US;
+    if (cnt_us < start_time_us){
+        return ((MAX_COUNTER_US - start_time_us + cnt_us) >= must_be_passed_us);
+    } else {
+        return ((cnt_us - start_time_us) >= must_be_passed_us);
+    }
+}
 
+bool was_passed_time_ms(uint32_t start_time_ms, uint32_t must_be_passed_ms){
+    uint32_t cnt_ms = GET_TIME_MS;
+    if (cnt_ms < start_time_ms){
+        return ((MAX_COUNTER_MS - start_time_ms + cnt_ms) >= must_be_passed_ms);
+    } else {
+        return ((cnt_ms - start_time_ms) >= must_be_passed_ms);
+    }
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartDefaultTask */
@@ -477,47 +493,57 @@ void StartDefaultTask(void *argument)
   for(;;)
   {
     osDelay(1);
-		#ifndef DEBUG
-	HAL_IWDG_Refresh(&hiwdg);
-		#endif
+      #ifndef DEBUG
+    HAL_IWDG_Refresh(&hiwdg);
+      #endif
   }
   /* USER CODE END 5 */
 }
 
-/* USER CODE BEGIN Header_StartTask02 */
+/* USER CODE BEGIN Header_encrypter_task */
 /**
 * @brief Function implementing the rt_uart1 thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask02 */
-void StartTask02(void *argument)
+/* USER CODE END Header_encrypter_task */
+void encrypter_task(void *argument)
 {
-  /* USER CODE BEGIN StartTask02 */
+  /* USER CODE BEGIN encrypter_task */
+  
+  // vTaskPrioritySet(TaskHandle_1,5); try it
+  // vTaskResume(TaskHandle_2);
+  // vTaskSuspend(NULL); //Suspend Own Task
+  // vTaskDelete(NULL);  // or // osThreadExit
+  // osThreadTerminate(another task)
+  // osThreadEnumerate
+
   /* Infinite loop */
   for(;;)
   {
+    exchange(&encrypt_uart);
     osDelay(1);
   }
-  /* USER CODE END StartTask02 */
+  /* USER CODE END encrypter_task */
 }
 
-/* USER CODE BEGIN Header_StartTask03 */
+/* USER CODE BEGIN Header_decrypter_task */
 /**
 * @brief Function implementing the rt_uart2 thread.
 * @param argument: Not used
 * @retval None
 */
-/* USER CODE END Header_StartTask03 */
-void StartTask03(void *argument)
+/* USER CODE END Header_decrypter_task */
+void decrypter_task(void *argument)
 {
-  /* USER CODE BEGIN StartTask03 */
+  /* USER CODE BEGIN decrypter_task */
   /* Infinite loop */
   for(;;)
   {
+    exchange(&decrypt_uart);
     osDelay(1);
   }
-  /* USER CODE END StartTask03 */
+  /* USER CODE END decrypter_task */
 }
 
  /**

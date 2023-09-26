@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"freertos.h": "c",
+			"cycle_buffer.h": "c",
+			"main.h": "c"
+		}
+	}
+}

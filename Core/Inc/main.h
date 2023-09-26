@@ -32,7 +32,8 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdint.h"
+#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -47,14 +48,23 @@ extern "C" {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
+#define MAX_TIM2_COUNTER    0xFFFF			  // ms
+#define MAX_TIM5_COUNTER    0xFFFFFFFF		// us
 
+#define GET_TIME_US           __HAL_TIM_GET_COUNTER(&htim5)
+#define MAX_COUNTER_US 	      MAX_TIM5_COUNTER
+#define GET_TIME_MS           __HAL_TIM_GET_COUNTER(&htim2)
+#define MAX_COUNTER_MS 		    MAX_TIM2_COUNTER
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+extern TIM_HandleTypeDef htim2;
+extern TIM_HandleTypeDef htim5; 
+extern UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef huart2;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
