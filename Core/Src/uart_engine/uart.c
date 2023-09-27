@@ -1,11 +1,8 @@
 #include "uart.h"
 
 uart_exchange_t encrypt_uart = {
-    .rx_buf = {
-        .byte = {0},
-        .tail = 0,
-        .head = 0
-    },
+    .rx_packet = {0},
+    .rx_queue = &encrypted_dataHandle,
     .tx_buf = {
         .byte = {0},
         .tail = 0,
@@ -16,11 +13,8 @@ uart_exchange_t encrypt_uart = {
     .flag_event = &encrypted_readyHandle
 };
 uart_exchange_t decrypt_uart = {
-    .rx_buf = {
-        .byte = {0},
-        .tail = 0,
-        .head = 0
-    },
+    .rx_packet = {0},
+    .rx_queue = &decrypted_dataHandle,
     .tx_buf = {
         .byte = {0},
         .tail = 0,
@@ -47,8 +41,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     uart_exchange_t * dev = (huart == encrypt_uart.uart_hand)? &encrypt_uart : \
                             (huart == decrypt_uart.uart_hand)? &decrypt_uart : NULL; 
     if (dev != NULL){
-		push_bytes(&dev->rx_buf, NULL, 1); 											
-        HAL_UART_Receive_IT(dev->uart_hand, (uint8_t *)(dev->rx_buf.byte + dev->rx_buf.tail), 1);
+        osMessageQueuePut(*dev->rx_queue, dev->rx_packet, -1, 0); 			// -1 do not care priotity
+        HAL_UART_Receive_IT(dev->uart_hand, dev->rx_packet, 1);
         
         
         osEventFlagsSet(*dev->flag_event, 1);
@@ -61,8 +55,11 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     uart_exchange_t * dev = (huart == encrypt_uart.uart_hand)? &encrypt_uart : \
                             (huart == decrypt_uart.uart_hand)? &decrypt_uart : NULL; 
     if (dev != NULL){
-//		if (dev->uart_hand->RxXferCount == 0) push_bytes(&dev->rx_buf, NULL, 1); 	                // push error byte?
-        HAL_UART_Receive_IT(dev->uart_hand, (uint8_t *)(dev->rx_buf.byte + dev->rx_buf.tail), 1);
+    	if (HAL_UART_GetError(dev->uart_hand) == HAL_UART_ERROR_ORE){
+    		dev->rx_packet[0] = (uint8_t)(huart->Instance->DR & (uint8_t)0x00FF);
+    		osMessageQueuePut(*dev->rx_queue, dev->rx_packet, -1, 0);	                // push error byte?
+    	}
+        HAL_UART_Receive_IT(dev->uart_hand, dev->rx_packet, 1);
     }
 }
 
@@ -88,25 +85,25 @@ void can_send_next_byte(uart_exchange_t *dev){
 }
 
 void exchange(uart_exchange_t * dev){
-    uint8_t byte = 0;
+    static uint8_t new_packet[1] = {0};
     
-    HAL_UART_Receive_IT(dev->uart_hand, (uint8_t *)(dev->rx_buf.byte + dev->rx_buf.tail), 1);
+    HAL_UART_Receive_IT(dev->uart_hand, dev->rx_packet, 1);
 
     if (dev == &encrypt_uart){
-        while (pull_bytes(&dev->rx_buf, &byte, 1) == BUFFER_SUCCESS){
-           push_bytes(&decrypt_uart.tx_buf, &byte, 1);
+        while (osMessageQueueGet(*dev->rx_queue, new_packet, NULL, 1) == osOK){ // check timeout, better set '0'
+           push_bytes(&decrypt_uart.tx_buf, new_packet, 1);
            osEventFlagsSet(*decrypt_uart.flag_event, 4);
         }
     }
     else if (dev == &decrypt_uart){
-        while (pull_bytes(&dev->rx_buf, &byte, 1) == BUFFER_SUCCESS){
-           push_bytes(&encrypt_uart.tx_buf, &byte, 1);
+        while (osMessageQueueGet(*dev->rx_queue, new_packet, NULL, 1) == osOK){
+           push_bytes(&encrypt_uart.tx_buf, new_packet, 1);
            osEventFlagsSet(*encrypt_uart.flag_event, 4);
         }
     }
 
     //  if ((dev->tx_len_sended == 0) && (get_busy_len_buf(&dev->tx_buf) > 0) ){
-    if ((osEventFlagsGet(*dev->flag_event) & 0x02) || (dev->uart_hand->gState == HAL_UART_STATE_READY)){
+    if ( (osEventFlagsGet(*dev->flag_event) & 0x02) || (dev->uart_hand->gState == HAL_UART_STATE_READY) ){
         can_send_next_byte(dev);
      }
     

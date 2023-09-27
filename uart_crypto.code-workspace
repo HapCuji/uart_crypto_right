@@ -8,7 +8,8 @@
 		"files.associations": {
 			"freertos.h": "c",
 			"cycle_buffer.h": "c",
-			"main.h": "c"
+			"main.h": "c",
+			"uart.h": "c"
 		}
 	}
 }

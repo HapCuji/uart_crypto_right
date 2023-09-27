@@ -6,13 +6,15 @@
 
 
 typedef struct {
-    cycle_buf_t rx_buf;
+    // cycle_buf_t rx_buf;
+    uint8_t rx_packet[1];
+    osMessageQueueId_t * rx_queue;
     cycle_buf_t tx_buf;
     
     // volatile uint16_t rx_asked_bytes;
     volatile uint16_t tx_len_sended;
     UART_HandleTypeDef * uart_hand;
-    osEventFlagsId_t * flag_event;
+    osEventFlagsId_t  * flag_event;
 } uart_exchange_t;
 
 

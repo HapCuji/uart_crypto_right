@@ -76,6 +76,9 @@ extern UART_HandleTypeDef huart2;
 // extern void decrypter_task(void *argument);
 extern osEventFlagsId_t encrypted_readyHandle;
 extern osEventFlagsId_t decrypted_readyHandle;
+extern osMessageQueueId_t encrypted_dataHandle;
+extern osMessageQueueId_t decrypted_dataHandle;
+
 
 /* USER CODE END Private defines */
 
