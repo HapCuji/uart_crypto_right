@@ -12,6 +12,7 @@ typedef struct {
     // volatile uint16_t rx_asked_bytes;
     volatile uint16_t tx_len_sended;
     UART_HandleTypeDef * uart_hand;
+    osEventFlagsId_t * flag_event;
 } uart_exchange_t;
 
 

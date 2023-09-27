@@ -238,9 +238,11 @@ int main(void)
 
   /* creation of encrypted_ready */
   encrypted_readyHandle = osEventFlagsNew(&encrypted_ready_attributes);
+  osEventFlagsSet(encrypted_readyHandle, 2);
   
   /* creation of decrypted_ready */
   decrypted_readyHandle = osEventFlagsNew(&decrypted_ready_attributes);
+  osEventFlagsSet(decrypted_readyHandle, 2);
 
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
@@ -562,7 +564,7 @@ void StartDefaultTask(void *argument)
   TickType_t xLastWakeTime;
   const TickType_t xFrequency = 10;
 
-  xLastWakeTime = xTaskGetTickCount ();
+xLastWakeTime = xTaskGetTickCount ();
   for(;;)
   {
       #ifndef DEBUG
@@ -612,7 +614,7 @@ void decrypter_task(void *argument)
   {
     exchange(&decrypt_uart);
 
-    osEventFlagsWait(decrypted_readyHandle, 1, 0, 2); // default clear exit, and not all bit wait, 10ms
+    osEventFlagsWait(decrypted_readyHandle, 1, 0, 2|4); // default clear exit, and not all bit wait, 10ms
     // vTaskSuspend(NULL);
   }
   /* USER CODE END decrypter_task */
