@@ -24,9 +24,13 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "uart.h"
+#include "task.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
+typedef StaticQueue_t osStaticMessageQDef_t;
+typedef StaticSemaphore_t osStaticMutexDef_t;
+typedef StaticEventGroup_t osStaticEventGroupDef_t;
 /* USER CODE BEGIN PTD */
 
 /* USER CODE END PTD */
@@ -72,8 +76,57 @@ const osThreadAttr_t rt_uart2_attributes = {
   .priority = (osPriority_t) osPriorityNormal,
   .stack_size = 128 * 4
 };
+/* Definitions for encrypted_data */
+osMessageQueueId_t encrypted_dataHandle;
+uint8_t encrypted_dataBuffer[ 120 * sizeof( uint8_t ) ];
+osStaticMessageQDef_t encrypted_dataControlBlock;
+const osMessageQueueAttr_t encrypted_data_attributes = {
+  .name = "encrypted_data",
+  .cb_mem = &encrypted_dataControlBlock,
+  .cb_size = sizeof(encrypted_dataControlBlock),
+  .mq_mem = &encrypted_dataBuffer,
+  .mq_size = sizeof(encrypted_dataBuffer)
+};
+/* Definitions for decrypted_data */
+osMessageQueueId_t decrypted_dataHandle;
+uint8_t decrypted_dataBuffer[ 120 * sizeof( uint8_t ) ];
+osStaticMessageQDef_t decrypted_dataControlBlock;
+const osMessageQueueAttr_t decrypted_data_attributes = {
+  .name = "decrypted_data",
+  .cb_mem = &decrypted_dataControlBlock,
+  .cb_size = sizeof(decrypted_dataControlBlock),
+  .mq_mem = &decrypted_dataBuffer,
+  .mq_size = sizeof(decrypted_dataBuffer)
+};
+/* Definitions for myMutex01 */
+osMutexId_t myMutex01Handle;
+osStaticMutexDef_t myMutex01ControlBlock;
+const osMutexAttr_t myMutex01_attributes = {
+  .name = "myMutex01",
+  .cb_mem = &myMutex01ControlBlock,
+  .cb_size = sizeof(myMutex01ControlBlock),
+};
+/* Definitions for encrypted_ready */
+osEventFlagsId_t encrypted_readyHandle;
+osStaticEventGroupDef_t encrypted_readyControlBlock;
+const osEventFlagsAttr_t encrypted_ready_attributes = {
+  .name = "encrypted_ready",
+  .cb_mem = &encrypted_readyControlBlock,
+  .cb_size = sizeof(encrypted_readyControlBlock),
+};
+/* Definitions for decrypted_ready */
+osEventFlagsId_t decrypted_readyHandle;
+osStaticEventGroupDef_t decrypted_readyControlBlock;
+const osEventFlagsAttr_t decrypted_ready_attributes = {
+  .name = "decrypted_ready",
+  .cb_mem = &decrypted_readyControlBlock,
+  .cb_size = sizeof(decrypted_readyControlBlock),
+};
 /* USER CODE BEGIN PV */
+//    EventGroupHandle_t xEventGroupHandle;
+//    StaticEventGroup_t xCreatedEventGroup;
 
+    
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -142,6 +195,9 @@ int main(void)
 
   /* Init scheduler */
   osKernelInitialize();
+  /* Create the mutex(es) */
+  /* creation of myMutex01 */
+  myMutex01Handle = osMutexNew(&myMutex01_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -154,6 +210,13 @@ int main(void)
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
+
+  /* Create the queue(s) */
+  /* creation of encrypted_data */
+  encrypted_dataHandle = osMessageQueueNew (120, sizeof(uint8_t), &encrypted_data_attributes);
+
+  /* creation of decrypted_data */
+  decrypted_dataHandle = osMessageQueueNew (120, sizeof(uint8_t), &decrypted_data_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -173,8 +236,15 @@ int main(void)
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
 
+  /* creation of encrypted_ready */
+  encrypted_readyHandle = osEventFlagsNew(&encrypted_ready_attributes);
+  
+  /* creation of decrypted_ready */
+  decrypted_readyHandle = osEventFlagsNew(&decrypted_ready_attributes);
+
   /* USER CODE BEGIN RTOS_EVENTS */
   /* add events, ... */
+
   /* USER CODE END RTOS_EVENTS */
 
   /* Start scheduler */
@@ -489,13 +559,18 @@ bool was_passed_time_ms(uint32_t start_time_ms, uint32_t must_be_passed_ms){
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN 5 */
-  /* Infinite loop */
+  TickType_t xLastWakeTime;
+  const TickType_t xFrequency = 10;
+
+  xLastWakeTime = xTaskGetTickCount ();
   for(;;)
   {
-    osDelay(1);
       #ifndef DEBUG
     HAL_IWDG_Refresh(&hiwdg);
       #endif
+
+    // Wait for the next cycle.
+    vTaskDelayUntil( &xLastWakeTime, xFrequency );
   }
   /* USER CODE END 5 */
 }
@@ -511,19 +586,14 @@ void encrypter_task(void *argument)
 {
   /* USER CODE BEGIN encrypter_task */
   
-  // vTaskPrioritySet(TaskHandle_1,5); try it
-  // vTaskResume(TaskHandle_2);
-  // vTaskSuspend(NULL); //Suspend Own Task
-  // vTaskDelete(NULL);  // or // osThreadExit
-  // osThreadTerminate(another task)
-  // osThreadEnumerate
+    for( ;; )
+    {
+        exchange(&encrypt_uart);
+        // vTaskSuspend(NULL);
 
-  /* Infinite loop */
-  for(;;)
-  {
-    exchange(&encrypt_uart);
-//    osDelay(1);
-  }
+        osEventFlagsWait(encrypted_readyHandle, 1, 0, 2); // default clear exit, and not all bit wait, 10ms
+        // osEventFlagsClear(encrypted_readyHandle, 1); // see above line
+    }
   /* USER CODE END encrypter_task */
 }
 
@@ -541,7 +611,9 @@ void decrypter_task(void *argument)
   for(;;)
   {
     exchange(&decrypt_uart);
-//    osDelay(1);
+
+    osEventFlagsWait(decrypted_readyHandle, 1, 0, 2); // default clear exit, and not all bit wait, 10ms
+    // vTaskSuspend(NULL);
   }
   /* USER CODE END decrypter_task */
 }

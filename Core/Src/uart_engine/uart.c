@@ -46,6 +46,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     if (dev != NULL){
 		push_bytes(&dev->rx_buf, NULL, 1); 											
         HAL_UART_Receive_IT(dev->uart_hand, (uint8_t *)(dev->rx_buf.byte + dev->rx_buf.tail), 1);
+        
+        
+        if (dev == &encrypt_uart) osEventFlagsSet(encrypted_readyHandle, 1); // vTaskResume(encrypter_task);
+        else if (dev == &decrypt_uart) osEventFlagsSet(decrypted_readyHandle, 1); // vTaskResume(decrypter_task);
+        // better set event, then resume from target task
     }
 }
 
@@ -88,18 +93,15 @@ void exchange(uart_exchange_t * dev){
         while (pull_bytes(&dev->rx_buf, &byte, 1) == BUFFER_SUCCESS){
            push_bytes(&decrypt_uart.tx_buf, &byte, 1);
         }
-        if ((decrypt_uart.tx_len_sended == 0) && (get_busy_len_buf(&decrypt_uart.tx_buf) > 0) ){
-            can_send_next_byte(&decrypt_uart);
-        }
     }
     else if (dev == &decrypt_uart){
         while (pull_bytes(&dev->rx_buf, &byte, 1) == BUFFER_SUCCESS){
            push_bytes(&encrypt_uart.tx_buf, &byte, 1);
         }
-        if ((encrypt_uart.tx_len_sended == 0) && (get_busy_len_buf(&encrypt_uart.tx_buf) > 0) ){
-            can_send_next_byte(&encrypt_uart);
-        }
     }
 
+     if ((dev->tx_len_sended == 0) && (get_busy_len_buf(&dev->tx_buf) > 0) ){
+        can_send_next_byte(dev);
+     }
     
 }

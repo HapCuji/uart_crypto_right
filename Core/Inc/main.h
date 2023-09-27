@@ -34,6 +34,8 @@ extern "C" {
 /* USER CODE BEGIN Includes */
 #include "stdint.h"
 #include "stdbool.h"
+
+#include "cmsis_os.h"
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -70,6 +72,10 @@ extern UART_HandleTypeDef huart2;
 /* Private defines -----------------------------------------------------------*/
 #define CPU_FREQ_HZ 32000000
 /* USER CODE BEGIN Private defines */
+// extern void encrypter_task(void *argument);
+// extern void decrypter_task(void *argument);
+extern osEventFlagsId_t encrypted_readyHandle;
+extern osEventFlagsId_t decrypted_readyHandle;
 
 /* USER CODE END Private defines */
 
