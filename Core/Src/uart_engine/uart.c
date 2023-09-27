@@ -68,8 +68,7 @@ void can_send_next_byte(uart_exchange_t *dev){
     }
     dev->tx_len_sended = get_busy_len_to_the_end_buf(&(dev->tx_buf));
 
-    if (dev->tx_len_sended >= BUF_LENGHT/4){
-        dev->tx_len_sended = BUF_LENGHT/4;
+    if (dev->tx_len_sended >= 0){
         if (HAL_UART_Transmit_DMA(dev->uart_hand, (uint8_t *)(dev->tx_buf.byte + dev->tx_buf.head), dev->tx_len_sended) == HAL_OK){ // != HAL_BUSY
         } else {
         	dev->tx_len_sended = 0;                 // must not be HAL_BUSY check it
@@ -87,16 +86,20 @@ void exchange(uart_exchange_t * dev){
 
     if (dev == &encrypt_uart){
         while (pull_bytes(&dev->rx_buf, &byte, 1) == BUFFER_SUCCESS){
-            push_bytes(&decrypt_uart.tx_buf, &byte, 1);
+           push_bytes(&decrypt_uart.tx_buf, &byte, 1);
+        }
+        if ((decrypt_uart.tx_len_sended == 0) && (get_busy_len_buf(&decrypt_uart.tx_buf) > 0) ){
+            can_send_next_byte(&decrypt_uart);
         }
     }
     else if (dev == &decrypt_uart){
         while (pull_bytes(&dev->rx_buf, &byte, 1) == BUFFER_SUCCESS){
-            push_bytes(&encrypt_uart.tx_buf, &byte, 1);
+           push_bytes(&encrypt_uart.tx_buf, &byte, 1);
+        }
+        if ((encrypt_uart.tx_len_sended == 0) && (get_busy_len_buf(&encrypt_uart.tx_buf) > 0) ){
+            can_send_next_byte(&encrypt_uart);
         }
     }
 
-    if ((dev->tx_len_sended == 0) && (get_busy_len_buf(&dev->tx_buf) > 0) ){
-        can_send_next_byte(dev);
-    }
+    
 }

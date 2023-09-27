@@ -522,7 +522,7 @@ void encrypter_task(void *argument)
   for(;;)
   {
     exchange(&encrypt_uart);
-    osDelay(1);
+//    osDelay(1);
   }
   /* USER CODE END encrypter_task */
 }
@@ -541,7 +541,7 @@ void decrypter_task(void *argument)
   for(;;)
   {
     exchange(&decrypt_uart);
-    osDelay(1);
+//    osDelay(1);
   }
   /* USER CODE END decrypter_task */
 }
